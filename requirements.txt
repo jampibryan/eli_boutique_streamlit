@@ -6,4 +6,7 @@ numpy>=1.26.0,<1.27.0
 pandas==1.5.3
 matplotlib==3.7.1
 requests==2.31.0
-Pillow==9.5.0
+Pillow>=10.0.0
+
+
+#Ya está con el commit, solo falta desplegarlo a streamlit cloude
