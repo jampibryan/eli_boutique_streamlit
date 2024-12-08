@@ -133,7 +133,8 @@ try:
         etiquetas_meses = ['Enero', 'Febrero', 'Marzo']
         colores = ['#4CAF50', '#FF9800', '#2196F3']
 
-        fig_pie, ax_pie = plt.subplots(figsize=(8, 8))
+        # Ajustamos el tamaño de la figura para hacerlo más pequeño
+        fig_pie, ax_pie = plt.subplots(figsize=(6, 6))
         wedges, texts, autotexts = ax_pie.pie(
             valores_mensuales,
             labels=etiquetas_meses,
