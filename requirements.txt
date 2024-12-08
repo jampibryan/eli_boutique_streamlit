@@ -9,6 +9,3 @@ requests
 Pillow
 joblib
 scikit-learn
-random
-hashlib
-
