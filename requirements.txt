@@ -9,5 +9,6 @@ requests
 Pillow
 joblib
 scikit-learn
+random
 
 #Ya está con el commit, solo falta desplegarlo a streamlit cloude
