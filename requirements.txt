@@ -7,6 +7,6 @@ pandas
 matplotlib
 requests
 Pillow
-
+joblib
 
 #Ya está con el commit, solo falta desplegarlo a streamlit cloude
