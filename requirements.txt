@@ -4,7 +4,7 @@ streamlit
 tensorflow
 numpy
 pandas
-matplotlib=
+matplotlib
 requests
 Pillow
 
