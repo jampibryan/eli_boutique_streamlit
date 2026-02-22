@@ -1,3 +1,22 @@
+#
+"""
+Esta aplicación Streamlit consume una API REST desarrollada en Laravel
+para obtener datos históricos de ventas de una tienda de ropa.
+
+Endpoint API:
+http://127.0.0.1:8000/api/obtener-datos-ventas
+
+La API devuelve JSON con:
+producto_id
+producto_nombre
+cantidad_vendida
+año
+mes
+dia
+
+Estos datos se usan para predecir ventas futuras utilizando un modelo
+de TensorFlow previamente entrenado.
+"""
 #app.py
 
 # Importaciones necesarias
@@ -13,7 +32,7 @@ import random
 import hashlib
 
 # URL de la API de Laravel
-LARAVEL_API_URL = 'https://eliboutique.firetensor.com/obtener-datos-ventas'
+LARAVEL_API_URL = "http://127.0.0.1:8000/api/obtener-datos-ventas"
 
 # Cargar el modelo previamente entrenado
 modelo = tf.keras.models.load_model('modelo_ventas.h5')
@@ -102,78 +121,99 @@ def asignar_estimaciones_mensuales(df_producto):
 st.markdown("<h1 style='text-align: center;'>Predicción de ventas para los próximos 3 meses</h1>", unsafe_allow_html=True)
 
 # Obtener los datos de ventas de la API de Laravel
-try:
-    response = requests.get(LARAVEL_API_URL)
 
-    if response.status_code == 200:
-        ventas = response.json()
-        productos = ventas
-        df = pd.DataFrame(ventas)
-        df['producto_id'] = pd.to_numeric(df['producto_id'], errors='coerce')
-        df['producto_nombre'] = df['producto_nombre'].astype(str)
+# --- BLOQUE COMENTADO: Consumo de API Laravel ---
+# try:
+#     response = requests.get(LARAVEL_API_URL)
+#     if response.status_code == 200:
+#         ventas = response.json()
+#         productos = ventas
+#         df = pd.DataFrame(ventas)
+#         df['producto_id'] = pd.to_numeric(df['producto_id'], errors='coerce')
+#         df['producto_nombre'] = df['producto_nombre'].astype(str)
+#         # ...existing code...
+#     else:
+#         st.error("Error al obtener los datos de ventas desde Laravel.")
+# except Exception as e:
+#     st.error(f"Error de conexión con la API de Laravel: {e}")
 
-        # Realizar la predicción solo una vez
-        if 'df_predicciones' not in st.session_state:
-            df_predicciones = predecir_ventas_3_meses(productos)
-            df_predicciones = asignar_estimaciones_mensuales(df_predicciones)
-            st.session_state.df_predicciones = df_predicciones
-        
-        # Mostrar solo productos únicos en el selectbox
-        productos_unicos = df['producto_nombre'].unique()  # Obtener productos únicos
-        producto_seleccionado = st.selectbox("Seleccionar producto", productos_unicos)
-        
-        # Filtrar las predicciones para el producto seleccionado
-        df_producto_seleccionado = st.session_state.df_predicciones[st.session_state.df_predicciones['producto_nombre'] == producto_seleccionado]
+# --- NUEVO FLUJO: Cargar datos desde ventas.csv ---
 
-        st.write(f"Predicción de ventas mensuales para el producto: {producto_seleccionado}")
-        st.write(df_producto_seleccionado[['producto_nombre', 'Enero', 'Febrero', 'Marzo']])
+# --- Función para consumir la API ---
+def cargar_datos_api():
+    try:
+        response = requests.get(LARAVEL_API_URL, timeout=10)
+        if response.status_code == 200:
+            data = response.json()
+            df = pd.DataFrame(data)
+            df['producto_id'] = pd.to_numeric(df['producto_id'], errors='coerce')
+            df['producto_nombre'] = df['producto_nombre'].astype(str)
+            return df
+        else:
+            st.error("Error al obtener datos desde la API")
+    except Exception as e:
+        st.error(f"No se pudo conectar con la API: {e}")
+    return None
 
-        st.subheader("Gráfico circular de la cantidad estimada mensual del producto seleccionado")
-        valores_mensuales = df_producto_seleccionado[['Enero', 'Febrero', 'Marzo']].iloc[0].values
-        etiquetas_meses = ['Enero', 'Febrero', 'Marzo']
-        colores = ['#4CAF50', '#FF9800', '#2196F3']
+# --- Cargar datos desde la API ---
+df = cargar_datos_api()
+if df is None:
+    st.stop()
+productos = df.to_dict('records')
 
-        # Ajustamos el tamaño de la figura para hacerlo más pequeño
-        fig_pie, ax_pie = plt.subplots(figsize=(6, 6))
-        wedges, texts, autotexts = ax_pie.pie(
-            valores_mensuales,
-            labels=etiquetas_meses,
-            autopct='%1.1f%%',
-            startangle=90,
-            colors=colores,
-            explode=[0.05, 0.05, 0.05],
-            pctdistance=0.85,
-            textprops={'fontsize': 12, 'color': 'black'}
-        )
+# Realizar la predicción solo una vez
+if 'df_predicciones' not in st.session_state:
+    df_predicciones = predecir_ventas_3_meses(productos)
+    df_predicciones = asignar_estimaciones_mensuales(df_predicciones)
+    st.session_state.df_predicciones = df_predicciones
 
-        for text in texts:
-            text.set_fontsize(14)
-            text.set_color('#333333')
-        for autotext in autotexts:
-            autotext.set_fontsize(12)
-            autotext.set_color('white')
+# Mostrar solo productos únicos en el selectbox
+productos_unicos = df['producto_nombre'].unique()
+producto_seleccionado = st.selectbox("Seleccionar producto", productos_unicos)
 
-        ax_pie.set_title("Distribución de ventas estimadas por mes", fontsize=16, fontweight='bold', color='#333333')
-        centro_circulo = plt.Circle((0, 0), 0.70, fc='white')
-        fig_pie.gca().add_artist(centro_circulo)
+# Filtrar las predicciones para el producto seleccionado
+df_producto_seleccionado = st.session_state.df_predicciones[st.session_state.df_predicciones['producto_nombre'] == producto_seleccionado]
 
-        st.pyplot(fig_pie)
+st.write(f"Predicción de ventas mensuales para el producto: {producto_seleccionado}")
+st.write(df_producto_seleccionado[['producto_nombre', 'Enero', 'Febrero', 'Marzo']])
 
-        st.subheader("Gráfico de barras de la cantidad estimada por producto")
-        fig, ax = plt.subplots(figsize=(16, 8))
-        ax.bar(st.session_state.df_predicciones['producto_nombre'], st.session_state.df_predicciones['cantidad_estimada'], color='royalblue', width=0.6)
-        ax.set_xlabel('Producto', fontsize=14)
-        ax.set_ylabel('Cantidad Estimada', fontsize=14)
-        ax.set_title('Predicción de ventas para los próximos 3 meses', fontsize=16)
-        plt.xticks(rotation=45, ha='right', fontsize=12)
-        plt.yticks(fontsize=12)
-        plt.tight_layout()
-        st.pyplot(fig)
+st.subheader("Gráfico circular de la cantidad estimada mensual del producto seleccionado")
+valores_mensuales = df_producto_seleccionado[['Enero', 'Febrero', 'Marzo']].iloc[0].values
+etiquetas_meses = ['Enero', 'Febrero', 'Marzo']
+colores = ['#4CAF50', '#FF9800', '#2196F3']
 
-    else:
-        st.error("Error al obtener los datos de ventas desde Laravel.")
-except Exception as e:
-    st.error(f"Error de conexión con la API de Laravel: {e}")
+fig_pie, ax_pie = plt.subplots(figsize=(6, 6))
+wedges, texts, autotexts = ax_pie.pie(
+    valores_mensuales,
+    labels=etiquetas_meses,
+    autopct='%1.1f%%',
+    startangle=90,
+    colors=colores,
+    explode=[0.05, 0.05, 0.05],
+    pctdistance=0.85,
+    textprops={'fontsize': 12, 'color': 'black'}
+)
+for text in texts:
+    text.set_fontsize(14)
+    text.set_color('#333333')
+for autotext in autotexts:
+    autotext.set_fontsize(12)
+    autotext.set_color('white')
+ax_pie.set_title("Distribución de ventas estimadas por mes", fontsize=16, fontweight='bold', color='#333333')
+centro_circulo = plt.Circle((0, 0), 0.70, fc='white')
+fig_pie.gca().add_artist(centro_circulo)
+st.pyplot(fig_pie)
+
+st.subheader("Gráfico de barras de la cantidad estimada por producto")
+fig, ax = plt.subplots(figsize=(16, 8))
+ax.bar(st.session_state.df_predicciones['producto_nombre'], st.session_state.df_predicciones['cantidad_estimada'], color='royalblue', width=0.6)
+ax.set_xlabel('Producto', fontsize=14)
+ax.set_ylabel('Cantidad Estimada', fontsize=14)
+ax.set_title('Predicción de ventas para los próximos 3 meses', fontsize=16)
+plt.xticks(rotation=45, ha='right', fontsize=12)
+plt.yticks(fontsize=12)
+plt.tight_layout()
+st.pyplot(fig)
 
 st.sidebar.markdown("### Desarrolladores:")
 st.sidebar.markdown("- Bryan Amaya\n- Karen Perez")
