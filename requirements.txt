@@ -9,5 +9,6 @@ requests
 Pillow
 joblib
 scikit-learn
+plotly
 
-py -m pip install setuptools wheel streamlit tensorflow numpy pandas matplotlib requests Pillow joblib scikit-learn
+py -m pip install setuptools wheel streamlit tensorflow numpy pandas matplotlib requests Pillow joblib scikit-learn plotly

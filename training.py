@@ -1,14 +1,43 @@
 
 import pandas as pd
 import numpy as np
+import requests
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import StandardScaler
 from sklearn.metrics import mean_absolute_error, mean_squared_error
 import tensorflow as tf
 import joblib  # Para guardar el escalador y los valores de normalización
 
-# Cargar datos
-data = pd.read_csv('ventas.csv')  # Asegúrate de que el archivo CSV está disponible
+# --- Cargar datos desde la API Laravel ---
+LARAVEL_API_URL = "http://127.0.0.1:8000/api/obtener-datos-ventas"
+
+print("Obteniendo datos desde la API...")
+try:
+    response = requests.get(LARAVEL_API_URL, timeout=10)
+    if response.status_code == 200:
+        data = pd.DataFrame(response.json())
+        print(f"Datos obtenidos: {len(data)} registros")
+    else:
+        print(f"Error al obtener datos: código {response.status_code}")
+        exit()
+except Exception as e:
+    print(f"No se pudo conectar con la API: {e}")
+    exit()
+
+# Renombrar columnas si es necesario (la API usa 'dia', el CSV usaba 'día')
+if 'dia' in data.columns:
+    data.rename(columns={'dia': 'día'}, inplace=True)
+
+# Asegurar tipos numéricos
+data['producto_id'] = pd.to_numeric(data['producto_id'], errors='coerce')
+data['año'] = pd.to_numeric(data['año'], errors='coerce')
+data['mes'] = pd.to_numeric(data['mes'], errors='coerce')
+data['día'] = pd.to_numeric(data['día'], errors='coerce')
+data['cantidad_vendida'] = pd.to_numeric(data['cantidad_vendida'], errors='coerce')
+data = data.dropna()
+
+print(f"Meses encontrados: {sorted(data['mes'].unique())}")
+print(f"Años encontrados: {sorted(data['año'].unique())}")
 
 # Características (features) y variable objetivo (target)
 X = data[['producto_id', 'año', 'mes', 'día']]  # Características relevantes
